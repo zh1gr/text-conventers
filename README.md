@@ -172,3 +172,12 @@ interface Organization {
 </tr>
 
 </table>
+
+---
+## bug
+- [ ] json to golang `{"one":[[{"two":"second"}]]}` return `0 0 json:"0"`
+
+---
+## future dev
+- [ ] copy/paste buttons right top text area
+- [ ] syntax highlight
