@@ -1,4 +1,4 @@
-# Text Conventer
+# ![Text Conventer](./favicon/favicon.ico) Text Conventer
 
 <table>
 <tr>
@@ -91,6 +91,20 @@ type Third struct {
 ```json
 {"one":"two","second":["uno","dos"]}
 ```
+
+</td>
+</tr>
+
+<tr>
+<td>base64 to Text</td>
+<td>
+
+`SGVsbG8sIHRoaXMgaXMgYSBiYXNlNjQgZW5jb2RlZCBtZXNzYWdlLg==`
+
+</td>
+<td>
+
+`Hello, this is a base64 encoded message.`
 
 </td>
 </tr>
