@@ -3,7 +3,6 @@ const outputArea = document.querySelector(".large-area--output");
 const btnFormat = document.querySelector(".controls__button--convert");
 const selectConversion = document.querySelector(".controls__select");
 
-// Define the conversion options
 const conversionOptions = [
     { value: 'jsonToGolang', label: 'JSON to Golang Struct' },
     { value: 'jsonBeautify', label: 'JSON Beautify' },
@@ -12,7 +11,6 @@ const conversionOptions = [
     { value: 'protoBuffToTypeScript', label: 'ProtoBuff to TypeScript' }
 ];
 
-// Dynamically load the options in the select dropdown
 function loadOptions() {
     conversionOptions.forEach(option => {
         const optElement = document.createElement('option');
@@ -22,10 +20,8 @@ function loadOptions() {
     });
 }
 
-// Run the function to load the options when the page is loaded
 document.addEventListener("DOMContentLoaded", loadOptions);
 
-// Event listener for the button click
 btnFormat.addEventListener("click", () => {
     const conversionType = selectConversion.value;
     let input = inputArea.value;
@@ -54,8 +50,6 @@ btnFormat.addEventListener("click", () => {
         outputArea.value = err.message;
     }
 });
-
-// Conversion functions
 
 function jsonBeautify(json) {
     try {
@@ -145,8 +139,6 @@ function jsonToGolang(jsonInput) {
     }
 }
 
-// ProtoBuff To TypeScript
-
 function protoBuffToTypeScript(proto) {
     try {
         return protoToTypescript(proto)
@@ -168,31 +160,26 @@ function protoToTypescript(protoText) {
         line = line.trim();
 
         if (line.startsWith("message")) {
-            // Start of a message
             insideMessage = true;
             insideEnum = false;
             currentMessageName = line.split(" ")[1].replace("{", "").trim();
             tsDefinitions += `interface ${currentMessageName} {\n`;
         } else if (line.startsWith("enum")) {
-            // Start of an enum
             insideEnum = true;
             insideMessage = false;
             currentEnumName = line.split(" ")[1].replace("{", "").trim();
             tsDefinitions += `enum ${currentEnumName} {\n`;
         } else if (line.startsWith("}")) {
-            // End of message or enum
             tsDefinitions += `}\n\n`;
             insideMessage = false;
             insideEnum = false;
         } else if (insideMessage && line !== "") {
-            // Handle repeated fields
             if (line.startsWith("repeated")) {
                 const parts = line.split(" ");
                 const repeatedType = protobufTypeToTSType(parts[1]);
                 const fieldName = parts[2];
                 tsDefinitions += `  ${fieldName}: ${repeatedType}[];\n`;
             }
-            // Handle map fields
             else if (line.startsWith("map")) {
                 const mapParts = line.match(/map<(.+),\s*(.+)>/);
                 const keyType = protobufTypeToTSType(mapParts[1]);
@@ -200,7 +187,6 @@ function protoToTypescript(protoText) {
                 const fieldName = line.split(" ")[2];
                 tsDefinitions += `  ${fieldName}: Map<${keyType}, ${valueType}>;\n`;
             }
-            // Handle normal fields
             else {
                 const parts = line.split(" ");
                 const type = parts[0];
@@ -209,7 +195,6 @@ function protoToTypescript(protoText) {
                 tsDefinitions += `  ${fieldName}: ${tsType};\n`;
             }
         } else if (insideEnum && line !== "") {
-            // Parse enum values
             const enumValue = line.split("=")[0].trim();
             tsDefinitions += `  ${enumValue},\n`;
         }
