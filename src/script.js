@@ -8,7 +8,9 @@ const conversionOptions = [
     { value: 'jsonBeautify', label: 'JSON Beautify' },
     { value: 'jsonMinify', label: 'JSON Minify' },
     { value: 'base64ToText', label: 'Base64 to Text' },
-    { value: 'protoBuffToTypeScript', label: 'ProtoBuff to TypeScript' }
+    { value: 'protoBuffToTypeScript', label: 'ProtoBuff to TypeScript' },
+    { value: 'htmlToGolang', label: 'HTML to Golang Struct' },
+    { value: 'jsonToCSV', label: 'JSON to CSV' }
 ];
 
 function loadOptions() {
@@ -43,6 +45,12 @@ btnFormat.addEventListener("click", () => {
             case "protoBuffToTypeScript":
                 outputArea.value = protoBuffToTypeScript(input);
                 break;
+            case "htmlToGolang":
+                outputArea.value = htmlToGolang(input);
+                break;
+            case "jsonToCSV":
+                outputArea.value = jsonToCSV(input);
+                break;
             default:
                 outputArea.value = "Invalid conversion type selected!";
         }
@@ -69,7 +77,10 @@ function jsonMinify(json) {
 
 function decodeByte(base64String) {
     try {
-        return atob(base64String);
+        const binaryString = atob(base64String);
+        const bytes = Uint8Array.from(binaryString, char => char.charCodeAt(0));
+        const decoder = new TextDecoder('utf-8');
+        return decoder.decode(bytes);
     } catch (e) {
         throw new Error('Invalid Base64 string');
     }
@@ -220,5 +231,125 @@ function protobufTypeToTSType(protoType) {
             return "Uint8Array";
         default:
             return protoType;
+    }
+}
+
+function htmlToGolang(html) {
+    try {
+        // Parse the HTML string into a DOM
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, "text/html");
+
+        // Get the body content
+        const body = doc.body;
+
+        // Start generating the Go struct from the body element
+        const goStruct = generateGoStructFromHTML(body, 'Document', new Set());
+
+        return goStruct;
+    } catch (e) {
+        throw new Error('Invalid HTML format');
+    }
+}
+
+// Reuse and adapt the generateGoStruct function for HTML
+function generateGoStructFromHTML(node, structName, structNames) {
+    if (structNames.has(structName)) {
+        return ''; // Avoid duplicate struct definitions
+    }
+    structNames.add(structName);
+
+    let structDef = `type ${structName} struct {\n`;
+
+    const children = Array.from(node.childNodes).filter(n => n.nodeType === Node.ELEMENT_NODE);
+    const hasText = Array.from(node.childNodes).some(n => n.nodeType === Node.TEXT_NODE && n.nodeValue.trim() !== '');
+
+    // Handle text content
+    if (hasText) {
+        structDef += `\tText string \`html:",innerhtml"\`\n`;
+    }
+
+    // Handle attributes
+    if (node.attributes && node.attributes.length > 0) {
+        Array.from(node.attributes).forEach(attr => {
+            const fieldName = capitalize(convertToCamelCase(attr.name));
+            structDef += `\t${fieldName} string \`html:"${attr.name},attr"\`\n`;
+        });
+    }
+
+    // Map to keep track of child elements
+    const childMap = {};
+    children.forEach(child => {
+        const name = capitalize(convertToCamelCase(child.nodeName.toLowerCase()));
+        if (!childMap[name]) {
+            childMap[name] = { count: 0, nodes: [] };
+        }
+        childMap[name].count += 1;
+        childMap[name].nodes.push(child);
+    });
+
+    // Generate fields for child elements
+    Object.keys(childMap).forEach(name => {
+        const childInfo = childMap[name];
+        let fieldName = name;
+        let fieldType = name;
+
+        // Check if multiple occurrences (array)
+        if (childInfo.count > 1) {
+            fieldType = `[]${name}`;
+            structDef += `\t${fieldName} ${fieldType} \`html:"${childInfo.nodes[0].nodeName.toLowerCase()}"\`\n`;
+        } else {
+            structDef += `\t${fieldName} ${fieldType} \`html:"${childInfo.nodes[0].nodeName.toLowerCase()}"\`\n`;
+        }
+    });
+
+    structDef += '}\n\n';
+
+    // Recursively generate structs for child elements
+    Object.keys(childMap).forEach(name => {
+        const childInfo = childMap[name];
+        const childNode = childInfo.nodes[0]; // Use first node as representative
+        structDef += generateGoStructFromHTML(childNode, name, structNames);
+    });
+
+    return structDef;
+}
+
+function capitalize(str) {
+    return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+function convertToCamelCase(str) {
+    return str.replace(/[-_](.)/g, (_, char) => char.toUpperCase());
+}
+
+function jsonToCSV(json) {
+    try {
+        // Parse JSON if it is a string
+        if (typeof json === 'string') {
+            json = JSON.parse(json);
+        }
+
+        // Extract column names and values
+        const { columnNames, values } = json;
+
+        if (!Array.isArray(columnNames) || !Array.isArray(values)) {
+            throw new Error('Invalid JSON structure');
+        }
+
+        // Start building CSV content
+        let csv = '';
+
+        // Add the header row
+        csv += columnNames.join(',') + '\n';
+
+        // Add each row of values
+        values.forEach(row => {
+            csv += row.map(value => (value === null || value === undefined ? '' : value)).join(',') + '\n';
+        });
+
+        return csv;
+    } catch (e) {
+        throw new Error('Error converting JSON to CSV: ' + e.message);
     }
 }
