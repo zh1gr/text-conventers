@@ -10,7 +10,7 @@ const conversionOptions = [
     { value: 'base64ToText', label: 'Base64 to Text' },
     { value: 'protoBuffToTypeScript', label: 'ProtoBuff to TypeScript' },
     { value: 'htmlToGolang', label: 'HTML to Golang Struct' },
-    { value: 'jsonToCSV', label: 'JSON to CSV' }
+    { value: 'dynatraceJsonToCSV', label: 'Dyntrace JSON to CSV' }
 ];
 
 function loadOptions() {
@@ -48,8 +48,8 @@ btnFormat.addEventListener("click", () => {
             case "htmlToGolang":
                 outputArea.value = htmlToGolang(input);
                 break;
-            case "jsonToCSV":
-                outputArea.value = jsonToCSV(input);
+            case "dynatraceJsonToCSV":
+                outputArea.value = dynatraceJsonToCSV(input);
                 break;
             default:
                 outputArea.value = "Invalid conversion type selected!";
@@ -236,14 +236,9 @@ function protobufTypeToTSType(protoType) {
 
 function htmlToGolang(html) {
     try {
-        // Parse the HTML string into a DOM
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, "text/html");
-
-        // Get the body content
         const body = doc.body;
-
-        // Start generating the Go struct from the body element
         const goStruct = generateGoStructFromHTML(body, 'Document', new Set());
 
         return goStruct;
@@ -252,10 +247,9 @@ function htmlToGolang(html) {
     }
 }
 
-// Reuse and adapt the generateGoStruct function for HTML
 function generateGoStructFromHTML(node, structName, structNames) {
     if (structNames.has(structName)) {
-        return ''; // Avoid duplicate struct definitions
+        return '';
     }
     structNames.add(structName);
 
@@ -264,12 +258,10 @@ function generateGoStructFromHTML(node, structName, structNames) {
     const children = Array.from(node.childNodes).filter(n => n.nodeType === Node.ELEMENT_NODE);
     const hasText = Array.from(node.childNodes).some(n => n.nodeType === Node.TEXT_NODE && n.nodeValue.trim() !== '');
 
-    // Handle text content
     if (hasText) {
         structDef += `\tText string \`html:",innerhtml"\`\n`;
     }
 
-    // Handle attributes
     if (node.attributes && node.attributes.length > 0) {
         Array.from(node.attributes).forEach(attr => {
             const fieldName = capitalize(convertToCamelCase(attr.name));
@@ -277,7 +269,6 @@ function generateGoStructFromHTML(node, structName, structNames) {
         });
     }
 
-    // Map to keep track of child elements
     const childMap = {};
     children.forEach(child => {
         const name = capitalize(convertToCamelCase(child.nodeName.toLowerCase()));
@@ -288,13 +279,11 @@ function generateGoStructFromHTML(node, structName, structNames) {
         childMap[name].nodes.push(child);
     });
 
-    // Generate fields for child elements
     Object.keys(childMap).forEach(name => {
         const childInfo = childMap[name];
         let fieldName = name;
         let fieldType = name;
 
-        // Check if multiple occurrences (array)
         if (childInfo.count > 1) {
             fieldType = `[]${name}`;
             structDef += `\t${fieldName} ${fieldType} \`html:"${childInfo.nodes[0].nodeName.toLowerCase()}"\`\n`;
@@ -305,7 +294,6 @@ function generateGoStructFromHTML(node, structName, structNames) {
 
     structDef += '}\n\n';
 
-    // Recursively generate structs for child elements
     Object.keys(childMap).forEach(name => {
         const childInfo = childMap[name];
         const childNode = childInfo.nodes[0]; // Use first node as representative
@@ -323,33 +311,47 @@ function convertToCamelCase(str) {
     return str.replace(/[-_](.)/g, (_, char) => char.toUpperCase());
 }
 
-function jsonToCSV(json) {
-    try {
-        // Parse JSON if it is a string
-        if (typeof json === 'string') {
-            json = JSON.parse(json);
-        }
-
-        // Extract column names and values
-        const { columnNames, values } = json;
-
-        if (!Array.isArray(columnNames) || !Array.isArray(values)) {
-            throw new Error('Invalid JSON structure');
-        }
-
-        // Start building CSV content
-        let csv = '';
-
-        // Add the header row
-        csv += columnNames.join(',') + '\n';
-
-        // Add each row of values
-        values.forEach(row => {
-            csv += row.map(value => (value === null || value === undefined ? '' : value)).join(',') + '\n';
-        });
-
-        return csv;
-    } catch (e) {
-        throw new Error('Error converting JSON to CSV: ' + e.message);
+function dynatraceJsonToCSV(input) {
+  try {
+    const data = typeof input === 'string' ? JSON.parse(input) : input;
+    const { columnNames, values } = data;
+    if (!Array.isArray(columnNames) || !Array.isArray(values)) {
+      throw new Error('Invalid JSON structure: missing columnNames/values arrays');
     }
+
+    const spColName = 'useraction.stringProperties';
+    const spIndex = columnNames.indexOf(spColName);
+    const needsEscape = v => /[",\n\r]/.test(v) || /^\s|\s$/.test(v);
+    const escapeCSV = v => (needsEscape(v) ? `"${v.replace(/"/g, '""')}"` : v);
+
+    const getFromStringProps = (propsArr, wantedKey) => {
+      if (!Array.isArray(propsArr)) return '';
+      const found = propsArr.find(x => x && x.key === wantedKey);
+      return found && found.value != null ? String(found.value) : '';
+    };
+
+    const header = columnNames.map(escapeCSV).join(',');
+
+    const rows = values.map(row => {
+      return columnNames.map((colName, i) => {
+        let val = row[i];
+        const m = /^useraction\.stringProperties\.(.+)$/.exec(colName);
+        if ((val === null || val === undefined) && m && spIndex !== -1) {
+          val = getFromStringProps(row[spIndex], m[1]);
+        }
+
+        if (val !== null && val !== undefined && typeof val === 'object') {
+          val = JSON.stringify(val);
+        }
+
+        val = (val === null || val === undefined) ? '' : String(val);
+
+        return escapeCSV(val);
+      }).join(',');
+    });
+
+    return [header, ...rows].join('\n') + '\n';
+  } catch (e) {
+    throw new Error('Error converting JSON to CSV: ' + e.message);
+  }
 }
