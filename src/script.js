@@ -10,7 +10,9 @@ const conversionOptions = [
     { value: 'base64ToText', label: 'Base64 to Text' },
     { value: 'protoBuffToTypeScript', label: 'ProtoBuff to TypeScript' },
     { value: 'htmlToGolang', label: 'HTML to Golang Struct' },
-    { value: 'dynatraceJsonToCSV', label: 'Dyntrace JSON to CSV' }
+    { value: 'dynatraceJsonToCSV', label: 'Dyntrace JSON to CSV' },
+    { value: 'encodeUrl', label: 'Encode URL'},
+    { value: 'decodeUrl', label: 'Decode URL'}
 ];
 
 function loadOptions() {
@@ -51,6 +53,12 @@ btnFormat.addEventListener("click", () => {
             case "dynatraceJsonToCSV":
                 outputArea.value = dynatraceJsonToCSV(input);
                 break;
+            case "encodeUrl":
+                outputArea.value = encodeUrl(input);
+                break;
+            case "decodeUrl":
+                outputArea.value = decodeUrl(input);
+                break;
             default:
                 outputArea.value = "Invalid conversion type selected!";
         }
@@ -58,6 +66,14 @@ btnFormat.addEventListener("click", () => {
         outputArea.value = err.message;
     }
 });
+
+function encodeUrl(string) {
+    return encodeURIComponent(string)
+}
+
+function decodeUrl(string) {
+    return decodeURIComponent(string)
+}
 
 function jsonBeautify(json) {
     try {
