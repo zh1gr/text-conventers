@@ -12,7 +12,8 @@ const conversionOptions = [
     { value: 'htmlToGolang', label: 'HTML to Golang Struct' },
     { value: 'dynatraceJsonToCSV', label: 'Dyntrace JSON to CSV' },
     { value: 'encodeUrl', label: 'Encode URL'},
-    { value: 'decodeUrl', label: 'Decode URL'}
+    { value: 'decodeUrl', label: 'Decode URL'},
+    { value: 'stringified', label: 'String to Stringified'}
 ];
 
 function loadOptions() {
@@ -59,6 +60,9 @@ btnFormat.addEventListener("click", () => {
             case "decodeUrl":
                 outputArea.value = decodeUrl(input);
                 break;
+            case "stringified":
+                outputArea.value = stringToStringified(input);
+                break;
             default:
                 outputArea.value = "Invalid conversion type selected!";
         }
@@ -66,6 +70,10 @@ btnFormat.addEventListener("click", () => {
         outputArea.value = err.message;
     }
 });
+
+function stringToStringified(string){
+    return JSON.stringify(string)
+}
 
 function encodeUrl(string) {
     return encodeURIComponent(string)
