@@ -8,6 +8,7 @@ const conversionOptions = [
     { value: 'jsonBeautify', label: 'JSON Beautify' },
     { value: 'jsonMinify', label: 'JSON Minify' },
     { value: 'base64ToText', label: 'Base64 to Text' },
+    { value: 'textToBase64', label: 'Text to Base64' },
     { value: 'protoBuffToTypeScript', label: 'ProtoBuff to TypeScript' },
     { value: 'htmlToGolang', label: 'HTML to Golang Struct' },
     { value: 'dynatraceJsonToCSV', label: 'Dyntrace JSON to CSV' },
@@ -43,7 +44,10 @@ btnFormat.addEventListener("click", () => {
                 outputArea.value = jsonMinify(input);
                 break;
             case "base64ToText":
-                outputArea.value = decodeByte(input);
+                outputArea.value = base64ToText(input);
+                break;
+            case "textToBase64":
+                outputArea.value = textToBase64(input);
                 break;
             case "protoBuffToTypeScript":
                 outputArea.value = protoBuffToTypeScript(input);
@@ -99,14 +103,26 @@ function jsonMinify(json) {
     }
 }
 
-function decodeByte(base64String) {
+function base64ToText(base64String) {
     try {
         const binaryString = atob(base64String);
         const bytes = Uint8Array.from(binaryString, char => char.charCodeAt(0));
         const decoder = new TextDecoder('utf-8');
         return decoder.decode(bytes);
     } catch (e) {
-        throw new Error('Invalid Base64 string');
+        throw new Error('Invalid Base64 string:' + e);
+    }
+}
+
+function textToBase64(string){
+    try {
+        const encoder = new TextEncoder('utf-8')
+        const bytes = encoder.encode(string);
+        let binary = "";
+        for (let i = 0; i<bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+        return btoa(binary)
+    } catch (e) {
+        throw new Error('Error encoding:' + e)
     }
 }
 
