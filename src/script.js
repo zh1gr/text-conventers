@@ -14,7 +14,8 @@ const conversionOptions = [
     { value: 'dynatraceJsonToCSV', label: 'Dyntrace JSON to CSV' },
     { value: 'encodeUrl', label: 'Encode URL'},
     { value: 'decodeUrl', label: 'Decode URL'},
-    { value: 'stringified', label: 'String to Stringified'}
+    { value: 'stringified', label: 'String to Stringified'},
+    { value: 'zabbixJsonToCsv', label: 'Zabbix API JSON to CSV'}
 ];
 
 function loadOptions() {
@@ -66,6 +67,9 @@ btnFormat.addEventListener("click", () => {
                 break;
             case "stringified":
                 outputArea.value = stringToStringified(input);
+                break;
+            case "zabbixJsonToCsv":
+                outputArea.value = zabbixJsonToCsv(input);
                 break;
             default:
                 outputArea.value = "Invalid conversion type selected!";
@@ -394,4 +398,51 @@ function dynatraceJsonToCSV(input) {
   } catch (e) {
     throw new Error('Error converting JSON to CSV: ' + e.message);
   }
+}
+
+function zabbixJsonToCsv(input){
+  const data = (typeof input === "string") ? JSON.parse(input) : input;
+  if (!data || !Array.isArray(data.result)) return "";
+
+  const rows = data.result;
+  if (rows.length === 0) return "";
+
+  const columns = [];
+  const seen = new Set();
+
+  for (const row of rows) {
+    if (row && typeof row === "object" && !Array.isArray(row)) {
+      for (const k of Object.keys(row)) {
+        if (!seen.has(k)) {
+          seen.add(k);
+          columns.push(k);
+        }
+      }
+    }
+  }
+
+  const esc = (v) => {
+    if (v === null || v === undefined) return "";
+    let s;
+    if (typeof v === "object") {
+      try { s = JSON.stringify(v); } catch { s = String(v); }
+    } else {
+      s = String(v);
+    }
+    s = s.replace(/\r\n|\n|\r/g, " ");
+    if (/[",\r\n]/.test(s)) {
+      s = `"${s.replace(/"/g, '""')}"`;
+    }
+    return s;
+  };
+
+  const header = columns.map(esc).join(",");
+  const lines = [header];
+
+  for (const row of rows) {
+    const line = columns.map((c) => esc(row?.[c])).join(",");
+    lines.push(line);
+  }
+
+  return lines.join("\n");
 }
