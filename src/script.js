@@ -400,48 +400,218 @@ function dynatraceJsonToCSV(input) {
   }
 }
 
-function zabbixJsonToCsv(input){
-  const data = (typeof input === "string") ? JSON.parse(input) : input;
-  if (!data || !Array.isArray(data.result)) return "";
+function zabbixJsonToCsv(input) {
+  var obj = JSON.parse(input);
+  var arr = (obj && obj.result && Array.isArray(obj.result)) ? obj.result : [];
+  var i, j;
 
-  const rows = data.result;
-  if (rows.length === 0) return "";
+  function isObj(v) { return v && typeof v === "object" && !Array.isArray(v); }
+  function isArr(v) { return Array.isArray(v); }
 
-  const columns = [];
-  const seen = new Set();
+  function normws(s) {
+    return String(s)
+      .replace(/\r\n/g, " ")
+      .replace(/\n/g, " ")
+      .replace(/\r/g, " ")
+      .replace(/\t/g, " ")
+      .replace(/ +/g, " ");
+  }
 
-  for (const row of rows) {
-    if (row && typeof row === "object" && !Array.isArray(row)) {
-      for (const k of Object.keys(row)) {
-        if (!seen.has(k)) {
-          seen.add(k);
-          columns.push(k);
+  function cell(v) {
+    if (v === null || v === undefined) return "";
+    var t = typeof v;
+    if (t === "string") return normws(v);
+    if (t === "number" || t === "boolean") return String(v);
+    return normws(JSON.stringify(v));
+  }
+
+  function csvEscape(v) {
+    var s = String(v);
+    s = s.replace(/"/g, '""');
+    return '"' + s + '"';
+  }
+
+  function uniqKeep(list) {
+    var seen = Object.create(null);
+    var out = [];
+    for (var k = 0; k < list.length; k++) {
+      var x = list[k];
+      if (!seen[x]) { seen[x] = 1; out.push(x); }
+    }
+    return out;
+  }
+
+  function scalarColsOrdered(node, prefixArr) {
+    var out = [];
+    var p = prefixArr || [];
+    if (isObj(node)) {
+      var keys = Object.keys(node);
+      for (var k = 0; k < keys.length; k++) {
+        var key = keys[k];
+        var v = node[key];
+        var np = p.concat([key]);
+        if (isObj(v)) {
+          out = out.concat(scalarColsOrdered(v, np));
+        } else if (isArr(v)) {
+        } else {
+          out.push(np.join("."));
         }
       }
+    } else if (isArr(node)) {
+    } else {
+      out.push(p.join("."));
+    }
+    return out;
+  }
+
+  function isContinuation(o) {
+    if (!isObj(o)) return false;
+    var keys = Object.keys(o);
+    var hasArray = false;
+    var hasNonArray = false;
+    for (var k = 0; k < keys.length; k++) {
+      var v = o[keys[k]];
+      if (isArr(v)) hasArray = true;
+      else hasNonArray = true;
+    }
+    return hasArray && !hasNonArray;
+  }
+
+  function mergeArrays(base, cont) {
+    var keys = Object.keys(cont);
+    for (var k = 0; k < keys.length; k++) {
+      var key = keys[k];
+      var v = cont[key];
+      if (!isArr(v)) continue;
+      var cur = base[key];
+      if (!isArr(cur)) cur = [];
+      base[key] = cur.concat(v);
+    }
+    return base;
+  }
+
+  var rows = [];
+  for (i = 0; i < arr.length; i++) {
+    var r = arr[i];
+    if (!isObj(r)) continue;
+    if (isContinuation(r) && rows.length > 0) {
+      rows[rows.length - 1] = mergeArrays(rows[rows.length - 1], r);
+    } else {
+      rows.push(r);
     }
   }
 
-  const esc = (v) => {
-    if (v === null || v === undefined) return "";
-    let s;
-    if (typeof v === "object") {
-      try { s = JSON.stringify(v); } catch { s = String(v); }
-    } else {
-      s = String(v);
+  var roots = [];
+  for (i = 0; i < rows.length; i++) {
+    var row = rows[i];
+    var rkeys = Object.keys(row);
+    for (j = 0; j < rkeys.length; j++) {
+      var rk = rkeys[j];
+      if (isArr(row[rk])) roots.push(rk);
     }
-    s = s.replace(/\r\n|\n|\r/g, " ");
-    if (/[",\r\n]/.test(s)) {
-      s = `"${s.replace(/"/g, '""')}"`;
+  }
+  roots = uniqKeep(roots);
+
+  function isRootName(name) {
+    for (var k = 0; k < roots.length; k++) if (roots[k] === name) return true;
+    return false;
+  }
+
+  var scols = [];
+  for (i = 0; i < rows.length; i++) {
+    var cols = scalarColsOrdered(rows[i], []);
+    for (j = 0; j < cols.length; j++) {
+      var c = cols[j];
+      var first = c.split(".")[0];
+      if (!isRootName(first)) scols.push(c);
     }
-    return s;
-  };
+  }
+  scols = uniqKeep(scols);
 
-  const header = columns.map(esc).join(",");
-  const lines = [header];
+  function arrayColsOrdered(allRows, rootsList) {
+    var out = [];
+    for (var rr = 0; rr < rootsList.length; rr++) {
+      var root = rootsList[rr];
+      // collect objects in scan order
+      var firstObj = null;
+      for (var a = 0; a < allRows.length && !firstObj; a++) {
+        var av = allRows[a][root];
+        if (!isArr(av)) continue;
+        for (var b = 0; b < av.length; b++) {
+          if (isObj(av[b])) { firstObj = av[b]; break; }
+        }
+      }
+      if (!firstObj) {
+        out.push(root);
+      } else {
+        var sch = scalarColsOrdered(firstObj, []);
+        for (var s = 0; s < sch.length; s++) out.push(root + "." + sch[s]);
+      }
+    }
+    return uniqKeep(out);
+  }
 
-  for (const row of rows) {
-    const line = columns.map((c) => esc(row?.[c])).join(",");
-    lines.push(line);
+  var acols = arrayColsOrdered(rows, roots);
+  var colsAll = uniqKeep(scols.concat(acols));
+
+  function getPath(obj2, parts) {
+    var cur = obj2;
+    for (var k = 0; k < parts.length; k++) {
+      if (cur === null || cur === undefined) return null;
+      if (!isObj(cur)) return null;
+      cur = cur[parts[k]];
+    }
+    return (cur === undefined) ? null : cur;
+  }
+
+  function getScalar(row, col) {
+    return getPath(row, col.split("."));
+  }
+
+  function getArray(row, col, idx) {
+    var p = col.split(".");
+    var root = p[0];
+    var arrv = row[root];
+    if (!isArr(arrv)) arrv = [];
+    var el = arrv[idx];
+    if (p.length === 1) return (el === undefined ? null : el);
+    if (!isObj(el)) return null;
+    return getPath(el, p.slice(1));
+  }
+
+  function maxRowsFor(row) {
+    var m = 0;
+    for (var k = 0; k < roots.length; k++) {
+      var a = row[roots[k]];
+      var len = isArr(a) ? a.length : 0;
+      if (len > m) m = len;
+    }
+    return (m < 1) ? 1 : m;
+  }
+
+  var lines = [];
+  var h = [];
+  for (i = 0; i < colsAll.length; i++) h.push(csvEscape(colsAll[i]));
+  lines.push(h.join(","));
+
+  for (i = 0; i < rows.length; i++) {
+    var row2 = rows[i];
+    var n = maxRowsFor(row2);
+    for (var idx = 0; idx < n; idx++) {
+      var line = [];
+      for (j = 0; j < colsAll.length; j++) {
+        var col = colsAll[j];
+        var rootName = col.split(".")[0];
+        var v;
+        if (isRootName(rootName)) {
+          v = getArray(row2, col, idx);
+        } else {
+          v = (idx === 0) ? getScalar(row2, col) : null;
+        }
+        line.push(csvEscape(cell(v)));
+      }
+      lines.push(line.join(","));
+    }
   }
 
   return lines.join("\n");
