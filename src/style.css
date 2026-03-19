@@ -91,3 +91,16 @@ body {
     background: #555555;
     color: #ffffff;
 }
+
+.version-text{
+    color: #aaaaaa;
+    text-decoration: none;
+    font-family: monospace;
+}
+
+.footer-block{
+    padding: 5px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
