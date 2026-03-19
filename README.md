@@ -1,5 +1,10 @@
 # ![Text Conventer](./favicon/favicon.ico) Text Conventer
 
+Web: https://zh1gr.github.io/text-conventers/
+
+<details>
+  <summary>Examples</summary>
+
 <table>
 <tr>
 <th> Action </th>
@@ -447,6 +452,7 @@ Details: line1 -> start, line2 -> finish
 
 </table>
 
+</details>
 ---
 ## bug
 - [ ] json to golang `{"one":[[{"two":"second"}]]}` return `0 0 json:"0"`
