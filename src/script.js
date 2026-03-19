@@ -14,7 +14,8 @@ const conversionOptions = [
     { value: 'dynatraceJsonToCSV', label: 'Dyntrace JSON to CSV' },
     { value: 'encodeUrl', label: 'Encode URL'},
     { value: 'decodeUrl', label: 'Decode URL'},
-    { value: 'stringified', label: 'String to Stringified'},
+    { value: 'stringToStringified', label: 'String to Stringified'},
+    { value: 'stringifiedToString', label: 'Stringified to String'},
     { value: 'zabbixJsonToCsv', label: 'Zabbix API JSON to CSV'}
 ];
 
@@ -65,8 +66,11 @@ btnFormat.addEventListener("click", () => {
             case "decodeUrl":
                 outputArea.value = decodeUrl(input);
                 break;
-            case "stringified":
+            case "stringToStringified":
                 outputArea.value = stringToStringified(input);
+                break;
+            case "stringifiedToString":
+                outputArea.value = stringifiedToString(input);
                 break;
             case "zabbixJsonToCsv":
                 outputArea.value = zabbixJsonToCsv(input);
@@ -81,6 +85,10 @@ btnFormat.addEventListener("click", () => {
 
 function stringToStringified(string){
     return JSON.stringify(string)
+}
+
+function stringifiedToString(stringified) {
+    return JSON.parse(stringified);
 }
 
 function encodeUrl(string) {

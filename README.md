@@ -368,6 +368,27 @@ Details: line1 -> start, line2 -> finish
 </tr>
 
 <tr>
+<td>Stringified to String</td>
+<td>
+
+`"Order created successfully\nUser: Q003017277\nProduct: Virtual Card\nPrice: 450000\nStatus: \"approved\"\nDetails: line1 -> start, line2 -> finish"`
+
+</td>
+<td>
+
+```
+Order created successfully
+User: Q003017277
+Product: Virtual Card
+Price: 450000
+Status: "approved"
+Details: line1 -> start, line2 -> finish
+```
+
+</td>
+</tr>
+
+<tr>
 <td>Zabbix API JSON to CSV</td>
 <td>
 
